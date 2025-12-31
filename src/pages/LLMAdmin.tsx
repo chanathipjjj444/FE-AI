@@ -31,6 +31,9 @@ const LLMAdmin: React.FC = () => {
   const [processing, setProcessing] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const [finalReport, setFinalReport] = useState<string | null>(null);
+  const [dqReport, setDqReport] = useState<any[]>([]);
+  const [classificationData, setClassificationData] = useState<any[]>([]);
+  const [completedVectors, setCompletedVectors] = useState<string[]>([]);
   const [activeStageTab, setActiveStageTab] = useState("0");
 
   // Sync tab with current step
@@ -60,6 +63,9 @@ const LLMAdmin: React.FC = () => {
     setProcessing(true);
     setCurrentStep(0);
     setLogs([]);
+    setDqReport([]);
+    setClassificationData([]);
+    setCompletedVectors([]);
     setFinalReport(null);
 
     try {
@@ -89,6 +95,15 @@ const LLMAdmin: React.FC = () => {
 
             if (data.report) {
               setFinalReport(data.report);
+            }
+            if (data.report_data) {
+              setDqReport(data.report_data);
+            }
+            if (data.classification_data) {
+              setClassificationData(data.classification_data);
+            }
+            if (data.completed_vectors) {
+              setCompletedVectors(data.completed_vectors);
             }
           } catch (e) {
             console.error("JSON Parse Error", e);
@@ -232,62 +247,96 @@ const LLMAdmin: React.FC = () => {
                             key: "1",
                             label: "Clean & Aggregate",
                             children: (
-                              <Table
-                                dataSource={[
-                                  {
-                                    id: "REC-901",
-                                    field: "shipping_date",
-                                    reason: "Invalid Date Format",
-                                    severity: "Warning",
-                                    action: "Dropped",
-                                  },
-                                  {
-                                    id: "REC-1024",
-                                    field: "cust_id",
-                                    reason: "Null ForeignKey",
-                                    severity: "Error",
-                                    action: "Dropped",
-                                  },
-                                  {
-                                    id: "REC-332",
-                                    field: "amount",
-                                    reason: "Negative Value",
-                                    severity: "Warning",
-                                    action: "Flagged",
-                                  },
-                                ]}
-                                columns={[
-                                  {
-                                    title: "Record ID",
-                                    dataIndex: "id",
-                                    render: (text) => <Text code>{text}</Text>,
-                                  },
-                                  { title: "Field", dataIndex: "field" },
-                                  { title: "Issue", dataIndex: "reason" },
-                                  {
-                                    title: "Severity",
-                                    dataIndex: "severity",
-                                    render: (sev) => (
-                                      <Tag
-                                        color={
-                                          sev === "Error" ? "red" : "orange"
-                                        }
-                                      >
-                                        {sev}
-                                      </Tag>
-                                    ),
-                                  },
-                                  {
-                                    title: "Action Taken",
-                                    dataIndex: "action",
-                                  },
-                                ]}
-                                title={() => (
-                                  <Title level={5}>
+                              <Card
+                                title={
+                                  <>
                                     <FilterOutlined /> Data Cleaning Log
-                                  </Title>
-                                )}
-                              />
+                                  </>
+                                }
+                              >
+                                <div
+                                  style={{
+                                    height: "600px",
+                                    overflow: "auto",
+                                    padding: "10px",
+                                  }}
+                                >
+                                  <XStream
+                                    content={
+                                      logs
+                                        .find((l) => l.includes("CLEANING"))
+                                        ?.replace("[CLEANING] ", "") ||
+                                      "Waiting for cleaning step..."
+                                    }
+                                  />
+                                  {dqReport && dqReport.length > 0 && (
+                                    <Table
+                                      style={{ marginTop: 20 }}
+                                      dataSource={dqReport}
+                                      pagination={false}
+                                      rowKey={(record) =>
+                                        record.scope + record.target
+                                      }
+                                      columns={[
+                                        {
+                                          title: "Scope",
+                                          dataIndex: "scope",
+                                          key: "scope",
+                                          width: "15%",
+                                          render: (text) => <b>{text}</b>,
+                                        },
+                                        {
+                                          title: "Target",
+                                          dataIndex: "target",
+                                          key: "target",
+                                          render: (text) => <code>{text}</code>,
+                                        },
+                                        {
+                                          title: "Issue Detected",
+                                          dataIndex: "issue",
+                                          key: "issue",
+                                        },
+                                        {
+                                          title: "Severity",
+                                          dataIndex: "severity",
+                                          key: "severity",
+                                          render: (sev) => {
+                                            let color = "blue";
+                                            if (sev === "Critical")
+                                              color = "red";
+                                            if (sev === "Error")
+                                              color = "volcano";
+                                            if (sev === "Warning")
+                                              color = "orange";
+                                            return (
+                                              <Tag color={color}>
+                                                {sev.toUpperCase()}
+                                              </Tag>
+                                            );
+                                          },
+                                        },
+                                        {
+                                          title: "Action Taken",
+                                          dataIndex: "action",
+                                          key: "action",
+                                          render: (action) => (
+                                            <Tag
+                                              color={
+                                                action.includes("DROPPED") ||
+                                                action === "Dropped"
+                                                  ? "magenta"
+                                                  : "gold"
+                                              }
+                                            >
+                                              {action}
+                                            </Tag>
+                                          ),
+                                        },
+                                      ]}
+                                    />
+                                  )}
+                                </div>
+                              </Card>
                             ),
                           },
                           {
@@ -301,64 +350,50 @@ const LLMAdmin: React.FC = () => {
                                   </>
                                 }
                               >
-                                <Table
-                                  dataSource={[
-                                    {
-                                      key: "1",
-                                      table: "cisli245",
-                                      domain: "Sales & Invoicing",
-                                      confidence: "99.8%",
-                                      columns: "item, amt, date...",
-                                    },
-                                    {
-                                      key: "2",
-                                      table: "whinh430",
-                                      domain: "Inventory Management",
-                                      confidence: "95.2%",
-                                      columns: "warehouse, stock, loc...",
-                                    },
-                                    {
-                                      key: "3",
-                                      table: "tcibd001",
-                                      domain: "Master Data",
-                                      confidence: "98.5%",
-                                      columns: "item_desc, group...",
-                                    },
-                                    {
-                                      key: "4",
-                                      table: "tdsls400",
-                                      domain: "Sales Orders",
-                                      confidence: "92.0%",
-                                      columns: "order_no, cust, date...",
-                                    },
-                                  ]}
-                                  columns={[
-                                    {
-                                      title: "Table Name",
-                                      dataIndex: "table",
-                                      render: (t) => <b>{t}</b>,
-                                    },
-                                    {
-                                      title: "Business Domain",
-                                      dataIndex: "domain",
-                                      render: (d) => (
-                                        <Tag color="geekblue">{d}</Tag>
-                                      ),
-                                    },
-                                    {
-                                      title: "AI Confidence",
-                                      dataIndex: "confidence",
-                                    },
-                                    {
-                                      title: "Key Columns Mapped",
-                                      dataIndex: "columns",
-                                      render: (c) => (
-                                        <Text type="secondary">{c}</Text>
-                                      ),
-                                    },
-                                  ]}
-                                  pagination={false}
-                                />
+                                <div
+                                  style={{
+                                    height: "600px",
+                                    overflow: "auto",
+                                    padding: "10px",
+                                  }}
+                                >
+                                  <XStream
+                                    content={
+                                      logs
+                                        .find((l) => l.includes("CLASSIFYING"))
+                                        ?.replace("[CLASSIFYING] ", "") ||
+                                      "Waiting for classification..."
+                                    }
+                                  />
+                                  {classificationData &&
+                                    classificationData.length > 0 && (
+                                      <div style={{ marginTop: 20 }}>
+                                        {classificationData.map(
+                                          (group: any) => (
+                                            <Card
+                                              key={group.group}
+                                              type="inner"
+                                              title={group.group}
+                                              size="small"
+                                              style={{ marginBottom: 16 }}
+                                            >
+                                              {group.tables.map(
+                                                (table: string) => (
+                                                  <Tag
+                                                    key={table}
+                                                    color="geekblue"
+                                                    style={{ marginBottom: 8 }}
+                                                  >
+                                                    {table}
+                                                  </Tag>
+                                                )
+                                              )}
+                                            </Card>
+                                          )
+                                        )}
+                                      </div>
+                                    )}
+                                </div>
                               </Card>
                             ),
                           },
@@ -375,82 +410,64 @@ const LLMAdmin: React.FC = () => {
                               >
                                 <div
                                   style={{
-                                    display: "flex",
-                                    justifyContent: "space-around",
-                                    textAlign: "center",
-                                    marginBottom: 30,
+                                    height: "600px",
+                                    overflow: "auto",
+                                    padding: "10px",
                                   }}
                                 >
-                                  <div>
-                                    <Title level={2}>850</Title>
-                                    <Text type="secondary">Chunks Created</Text>
-                                  </div>
-                                  <div>
-                                    <Title level={2}>1.2M</Title>
-                                    <Text type="secondary">
-                                      Tokens Processed
-                                    </Text>
-                                  </div>
-                                  <div>
-                                    <Title level={2}>1024</Title>
-                                    <Text type="secondary">
-                                      Vector Dimensions
-                                    </Text>
-                                  </div>
-                                </div>
-
-                                <Table
-                                  size="small"
-                                  title={() => <b>Recent Embeddings</b>}
-                                  dataSource={[
-                                    {
-                                      id: "vec_88219",
-                                      source: "cisli245.csv",
-                                      preview: "Inv#9001 - Widget A - $500...",
-                                      tokens: 128,
-                                    },
-                                    {
-                                      id: "vec_88220",
-                                      source: "cisli245.csv",
-                                      preview: "Inv#9002 - Widget B - $250...",
-                                      tokens: 115,
-                                    },
-                                    {
-                                      id: "vec_88221",
-                                      source: "whinh430.csv",
-                                      preview: "WH-01 Stock: 500u - Loc: A1...",
-                                      tokens: 89,
-                                    },
-                                  ]}
-                                  columns={[
-                                    {
-                                      title: "Chunk ID",
-                                      dataIndex: "id",
-                                      render: (t) => <Text code>{t}</Text>,
-                                    },
-                                    {
-                                      title: "Source File",
-                                      dataIndex: "source",
-                                    },
-                                    {
-                                      title: "Content Preview",
-                                      dataIndex: "preview",
-                                    },
-                                    {
-                                      title: "Tokens",
-                                      dataIndex: "tokens",
-                                      align: "right",
-                                    },
-                                  ]}
-                                  pagination={false}
-                                />
-
-                                <div style={{ marginTop: 20 }}>
-                                  <Alert
-                                    message="Embedding model: text-embedding-ada-002"
-                                    type="info"
-                                    showIcon
-                                  />
+                                  {classificationData &&
+                                  classificationData.length > 0 ? (
+                                    <div style={{ marginTop: 20 }}>
+                                      {classificationData.map((group: any) => {
+                                        const isDone =
+                                          completedVectors.includes(
+                                            group.group
+                                          );
+                                        return (
+                                          <Card
+                                            key={group.group}
+                                            type="inner"
+                                            size="small"
+                                            style={{ marginBottom: 16 }}
+                                            title={group.group}
+                                            extra={
+                                              isDone ? (
+                                                <Tag color="success">
+                                                  <CheckCircleOutlined />{" "}
+                                                  Indexed
+                                                </Tag>
+                                              ) : (
+                                                <Tag color="processing">
+                                                  <Spin size="small" />{" "}
+                                                  Indexing...
+                                                </Tag>
+                                              )
+                                            }
+                                          >
+                                            <Text type="secondary">
+                                              Generating embeddings for{" "}
+                                              {group.tables.length} tables:{" "}
+                                              {group.tables.join(", ")}
+                                            </Text>
+                                          </Card>
+                                        );
+                                      })}
+                                    </div>
+                                  ) : (
+                                    <XStream
+                                      content={
+                                        logs
+                                          .filter((l) =>
+                                            l.includes("VECTORIZING")
+                                          )
+                                          .map((l) =>
+                                            l.replace("[VECTORIZING] ", "")
+                                          )
+                                          .join("\n\n") ||
+                                        "Waiting for vectorization..."
+                                      }
+                                    />
+                                  )}
                                 </div>
                               </Card>
                             ),
