@@ -48,8 +48,7 @@ const SecureChatDemo: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
-      content:
-        "Sawasdee krub! I am the **Corporate AI**. How can I help you today?",
+      content: "สวัสดีครับ! ผมคือ **Corporate AI** มีอะไรให้ผมช่วยวันนี้ครับ?",
       sender: "ai",
     },
   ]);
@@ -121,7 +120,7 @@ const SecureChatDemo: React.FC = () => {
     // Step 1: Sending Request
     setThoughtChainItems([
       {
-        title: "Analyzing Intent & Permissions...",
+        title: "โจทย์: ความต้องการและสิทธิ์", // Adapted slightly for UX
         status: "loading",
         icon: <SafetyCertificateOutlined />,
       },
@@ -145,7 +144,7 @@ const SecureChatDemo: React.FC = () => {
 
         setThoughtChainItems(() => [
           {
-            title: "Access Check Failed",
+            title: "การตรวจสอบสิทธิ์ล้มเหลว",
             status: "error",
             description: errorMsg,
             icon: <LockOutlined />,
@@ -160,7 +159,7 @@ const SecureChatDemo: React.FC = () => {
       if (data.message) {
         setThoughtChainItems([
           {
-            title: "Response Generated",
+            title: "สร้างคำตอบเรียบร้อยแล้ว",
             status: "success",
             icon: <RobotOutlined />,
           },
@@ -171,25 +170,25 @@ const SecureChatDemo: React.FC = () => {
 
       setThoughtChainItems([
         {
-          title: "Security Check Passed",
+          title: "ผ่านการตรวจสอบความปลอดภัย",
           status: "success",
           icon: <SafetyCertificateOutlined />,
         },
         {
-          title: "Generated SQL",
+          title: "สร้างคำสั่ง SQL",
           status: "success",
           description: `\`\`\`sql\n${data.sql}\n\`\`\``,
           icon: <DatabaseOutlined />,
         },
         {
-          title: "Data Retrieved",
+          title: "ดึงข้อมูลเรียบร้อย",
           status: "success",
           icon: <ReadOutlined />,
         },
       ]);
 
       // Format Result as Table or JSON
-      let content = "I found the following data:\n\n";
+      let content = "พบข้อมูลดังนี้:\n\n";
       if (data.result && data.result.length > 0) {
         // Simple markdown table generation
         const keys = Object.keys(data.result[0]);
@@ -200,7 +199,7 @@ const SecureChatDemo: React.FC = () => {
           content += `| ${keys.map((k) => row[k]).join(" | ")} |\n`;
         });
       } else {
-        content += "No records found matching your query.";
+        content += "ไม่พบข้อมูลที่ตรงกับคำค้นหา";
       }
 
       addAIMessage(content, "success");
@@ -208,13 +207,13 @@ const SecureChatDemo: React.FC = () => {
       setThoughtChainItems((prev) => [
         ...prev,
         {
-          title: "Network Error",
+          title: "ข้อผิดพลาดเครือข่าย",
           status: "error",
           icon: <DatabaseOutlined />,
         },
       ]);
       addAIMessage(
-        "Sorry, I encountered a network error connecting to the AI server.",
+        "ขออภัย เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์ AI",
         "error"
       );
     }
@@ -250,11 +249,11 @@ const SecureChatDemo: React.FC = () => {
             style={{ fontSize: "24px", marginRight: "10px", color: "#1890ff" }}
           />
           <Title level={4} style={{ margin: 0 }}>
-            AI Assistant
+            ผู้ช่วย AI
           </Title>
         </div>
         <Button icon={<LogoutOutlined />} onClick={handleLogout}>
-          Logout
+          ออกจากระบบ
         </Button>
       </Header>
       <Layout>
@@ -266,7 +265,7 @@ const SecureChatDemo: React.FC = () => {
             borderRight: "1px solid #f0f0f0",
           }}
         >
-          <Title level={4}>Current User</Title>
+          <Title level={4}>ผู้ใช้งานปัจจุบัน</Title>
           {userProfile ? (
             <>
               <div style={{ marginBottom: 20 }}>
@@ -307,8 +306,8 @@ const SecureChatDemo: React.FC = () => {
 
           <Divider />
           <Alert
-            message="Secure Session"
-            description="Your queries are filtered by your Department and Role permissions."
+            message="เซสชันปลอดภัย"
+            description="การค้นหาของคุณถูกกรองตามสิทธิ์ของแผนกและบทบาท"
             type="success"
             showIcon
           />
@@ -371,7 +370,7 @@ const SecureChatDemo: React.FC = () => {
                     type="secondary"
                     style={{ marginBottom: 10, display: "block" }}
                   >
-                    Processing Secure Query...
+                    กำลังประมวลผลคำสั่ง...
                   </Text>
                   <ThoughtChain items={thoughtChainItems} />
                 </div>
@@ -387,7 +386,7 @@ const SecureChatDemo: React.FC = () => {
                 onSubmit={() => {
                   handleSend(input);
                 }}
-                placeholder="Ask me about sales, inventory, etc..."
+                placeholder="สอบถามเกี่ยวกับยอดขาย, สต็อกสินค้า..."
               />
             </div>
           </Flex>
