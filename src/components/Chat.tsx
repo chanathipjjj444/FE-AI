@@ -59,11 +59,11 @@ interface UserProfile {
 }
 
 const CATEGORIES = [
-  { key: "General", label: "General Chat", icon: <RobotOutlined /> },
-  { key: "Sales", label: "Sales", icon: <ShopOutlined /> },
-  { key: "HR", label: "HR", icon: <TeamOutlined /> },
-  { key: "Technology", label: "Technology", icon: <LaptopOutlined /> },
-  { key: "Finance", label: "Finance", icon: <BankOutlined /> },
+  { key: "General", label: "General Chat" },
+  { key: "Sales", label: "Sales" },
+  { key: "HR", label: "HR" },
+  { key: "Technology", label: "Technology" },
+  { key: "Finance", label: "Finance" },
 ];
 
 const SecureChatDemo: React.FC = () => {
