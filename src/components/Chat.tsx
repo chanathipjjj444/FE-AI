@@ -1,5 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Layout, Typography, Tag, Alert, Divider, Flex, Button } from "antd";
+import {
+  Layout,
+  Typography,
+  Tag,
+  Alert,
+  Divider,
+  Flex,
+  Button,
+  Menu,
+  message,
+} from "antd";
 import {
   UserOutlined,
   SafetyCertificateOutlined,
@@ -8,6 +18,11 @@ import {
   ReadOutlined,
   DatabaseOutlined,
   LogoutOutlined,
+  ShopOutlined,
+  TeamOutlined,
+  LaptopOutlined,
+  BankOutlined,
+  CommentOutlined,
 } from "@ant-design/icons";
 import { Actions, Bubble, Sender, ThoughtChain } from "@ant-design/x";
 import type { ThoughtChainItemType } from "@ant-design/x";
@@ -43,6 +58,14 @@ interface UserProfile {
   position: string;
 }
 
+const CATEGORIES = [
+  { key: "General", label: "General Chat", icon: <RobotOutlined /> },
+  { key: "Sales", label: "Sales", icon: <ShopOutlined /> },
+  { key: "HR", label: "HR", icon: <TeamOutlined /> },
+  { key: "Technology", label: "Technology", icon: <LaptopOutlined /> },
+  { key: "Finance", label: "Finance", icon: <BankOutlined /> },
+];
+
 const SecureChatDemo: React.FC = () => {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([
@@ -57,6 +80,7 @@ const SecureChatDemo: React.FC = () => {
     ThoughtChainItemType[]
   >([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState("General");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -133,7 +157,7 @@ const SecureChatDemo: React.FC = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query, category: selectedCategory }),
       });
 
       const data = await res.json();
@@ -214,7 +238,7 @@ const SecureChatDemo: React.FC = () => {
       ]);
       addAIMessage(
         "ขออภัย เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์ AI",
-        "error"
+        "error",
       );
     }
   };
@@ -232,165 +256,201 @@ const SecureChatDemo: React.FC = () => {
     return <XStream content={msg} />;
   };
 
+  const handleCategoryChange = (e: any) => {
+    setSelectedCategory(e.key);
+    message.info(`Switched to ${e.key} Knowledge Base`);
+    // Optionally clear messages or add a separator
+    setMessages([]);
+  };
+
   return (
     <Layout style={{ height: "100vh" }}>
-      <Header
-        style={{
-          background: "#fff",
-          display: "flex",
-          alignItems: "center",
-          borderBottom: "1px solid #f0f0f0",
-          justifyContent: "space-between",
-          padding: "0 24px",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center" }}>
-          <RobotOutlined
-            style={{ fontSize: "24px", marginRight: "10px", color: "#1890ff" }}
+      <Sider width={"15%"} theme="dark">
+        <div
+          style={{ padding: "16px 0", textAlign: "center", marginBottom: 16 }}
+        >
+          <CommentOutlined
+            style={{ fontSize: "24px", color: "#fff", marginRight: 10 }}
           />
-          <Title level={4} style={{ margin: 0 }}>
-            ผู้ช่วย AI
-          </Title>
+          <Text strong style={{ color: "#fff", fontSize: 16 }}>
+            Forniture's Chat
+          </Text>
         </div>
-        <Button icon={<LogoutOutlined />} onClick={handleLogout}>
-          ออกจากระบบ
-        </Button>
-      </Header>
-      <Layout>
-        <Sider
-          width="25%"
-          theme="light"
+        <Menu
+          theme="dark"
+          mode="inline"
+          selectedKeys={[selectedCategory]}
+          onClick={handleCategoryChange}
+          items={CATEGORIES}
+        />
+        <div
           style={{
-            padding: "20px",
-            borderRight: "1px solid #f0f0f0",
+            position: "absolute",
+            bottom: 20,
+            width: "100%",
+            textAlign: "center",
           }}
         >
-          <Title level={4}>ผู้ใช้งานปัจจุบัน</Title>
-          {userProfile ? (
-            <>
-              <div style={{ marginBottom: 20 }}>
-                <Text strong style={{ fontSize: 16 }}>
-                  {userProfile.first_name} {userProfile.last_name}
-                </Text>
-                <br />
-                <Text type="secondary">{userProfile.email}</Text>
+          <Button
+            type="text"
+            icon={<LogoutOutlined />}
+            style={{ color: "white" }}
+            onClick={handleLogout}
+          >
+            Logout
+          </Button>
+        </div>
+      </Sider>
+
+      <Layout>
+        <Header
+          style={{
+            background: "#fff",
+            display: "flex",
+            alignItems: "center",
+            borderBottom: "1px solid #f0f0f0",
+            justifyContent: "space-between",
+            padding: "0 24px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <Title level={4} style={{ margin: 0 }}>
+              {selectedCategory} Assistant
+            </Title>
+          </div>
+        </Header>
+        <Layout>
+          {/* Right Profile Sider - kept as original but moved inside */}
+          <Content
+            style={{
+              padding: "20px",
+              background: "#fff",
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              height: "100%",
+            }}
+          >
+            <Flex vertical style={{ height: "100%" }} gap="middle">
+              <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+                {messages.length === 0 && (
+                  <Alert
+                    message={`Welcome to ${selectedCategory} Learning Hub`}
+                    type="info"
+                    showIcon
+                    style={{ marginBottom: 20 }}
+                  />
+                )}
+                {messages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    style={{
+                      marginBottom: 20,
+                      display: "flex",
+                      justifyContent:
+                        msg.sender === "user" ? "flex-end" : "flex-start",
+                    }}
+                  >
+                    <Bubble
+                      placement={msg.sender === "user" ? "end" : "start"}
+                      content={renderMessageContent(msg.content)}
+                      footer={() => (
+                        <Actions
+                          items={actionItems(msg.content)}
+                          onClick={() => console.log("handle Click")}
+                        />
+                      )}
+                      avatar={
+                        msg.sender === "user" ? (
+                          <UserOutlined />
+                        ) : (
+                          <RobotOutlined />
+                        )
+                      }
+                      variant={msg.status === "error" ? "filled" : "outlined"}
+                    />
+                  </div>
+                ))}
+
+                {/* Visual Reasoning Trace (The Ant Design X Magic) */}
+                {isProcessing && thoughtChainItems.length > 0 && (
+                  <div
+                    style={{
+                      margin: "20px 0",
+                      padding: 20,
+                      background: "#fafafa",
+                      borderRadius: 8,
+                    }}
+                  >
+                    <Text
+                      strong
+                      type="secondary"
+                      style={{ marginBottom: 10, display: "block" }}
+                    >
+                      กำลังประมวลผลคำสั่ง...
+                    </Text>
+                    <ThoughtChain items={thoughtChainItems} />
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
               </div>
 
-              <Tag
-                color="geekblue"
-                style={{
-                  marginBottom: 10,
-                  display: "flex",
-                  width: "fit-content",
-                  alignItems: "center",
-                  gap: 5,
-                }}
-              >
-                <UserOutlined /> {userProfile.position}
-              </Tag>
-              <Tag
-                color="purple"
-                style={{
-                  display: "flex",
-                  width: "fit-content",
-                  alignItems: "center",
-                  gap: 5,
-                }}
-              >
-                <SafetyCertificateOutlined /> {userProfile.department}
-              </Tag>
-            </>
-          ) : (
-            <Text>Loading profile...</Text>
-          )}
-
-          <Divider />
-          <Alert
-            message="เซสชันปลอดภัย"
-            description="การค้นหาของคุณถูกกรองตามสิทธิ์ของแผนกและบทบาท"
-            type="success"
-            showIcon
-          />
-        </Sider>
-
-        <Content
-          style={{
-            padding: "20px",
-            background: "#fff",
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
-          <Flex vertical style={{ height: "100%" }} gap="middle">
-            <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  style={{
-                    marginBottom: 20,
-                    display: "flex",
-                    justifyContent:
-                      msg.sender === "user" ? "flex-end" : "flex-start",
+              <div style={{ padding: "0 50px" }}>
+                <Sender
+                  loading={isProcessing}
+                  value={input}
+                  onChange={setInput}
+                  onSubmit={() => {
+                    handleSend(input);
                   }}
-                >
-                  <Bubble
-                    placement={msg.sender === "user" ? "end" : "start"}
-                    content={renderMessageContent(msg.content)}
-                    footer={() => (
-                      <Actions
-                        items={actionItems(msg.content)}
-                        onClick={() => console.log("handle Click")}
-                      />
-                    )}
-                    avatar={
-                      msg.sender === "user" ? (
-                        <UserOutlined />
-                      ) : (
-                        <RobotOutlined />
-                      )
-                    }
-                    variant={msg.status === "error" ? "filled" : "outlined"}
-                  />
-                </div>
-              ))}
+                  placeholder={`Ask regarding ${selectedCategory}...`}
+                />
+              </div>
+            </Flex>
+          </Content>
 
-              {/* Visual Reasoning Trace (The Ant Design X Magic) */}
-              {isProcessing && thoughtChainItems.length > 0 && (
-                <div
-                  style={{
-                    margin: "20px 0",
-                    padding: 20,
-                    background: "#fafafa",
-                    borderRadius: 8,
-                  }}
-                >
-                  <Text
-                    strong
-                    type="secondary"
-                    style={{ marginBottom: 10, display: "block" }}
-                  >
-                    กำลังประมวลผลคำสั่ง...
+          <Sider
+            width="20%"
+            theme="light"
+            style={{
+              padding: "20px",
+              borderLeft: "1px solid #f0f0f0",
+            }}
+          >
+            <Title level={5}>
+              <UserOutlined /> User Profile
+            </Title>
+            {userProfile ? (
+              <>
+                <div style={{ marginBottom: 20 }}>
+                  <Text strong>
+                    {userProfile.first_name} {userProfile.last_name}
                   </Text>
-                  <ThoughtChain items={thoughtChainItems} />
+                  <br />
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {userProfile.email}
+                  </Text>
                 </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
 
-            <div style={{ padding: "0 50px" }}>
-              <Sender
-                loading={isProcessing}
-                value={input}
-                onChange={setInput}
-                onSubmit={() => {
-                  handleSend(input);
-                }}
-                placeholder="สอบถามเกี่ยวกับยอดขาย, สต็อกสินค้า..."
-              />
-            </div>
-          </Flex>
-        </Content>
+                <Tag color="geekblue">{userProfile.position}</Tag>
+                <Tag color="purple" style={{ marginTop: 5 }}>
+                  {userProfile.department}
+                </Tag>
+              </>
+            ) : (
+              <Text>Loading...</Text>
+            )}
+
+            <Divider />
+            <Alert
+              message="Secure Session"
+              description="Access limited by category."
+              type="success"
+              showIcon
+              style={{ fontSize: 12 }}
+            />
+          </Sider>
+        </Layout>
       </Layout>
     </Layout>
   );

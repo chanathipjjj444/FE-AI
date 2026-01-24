@@ -9,6 +9,10 @@ import {
   Table,
   Tag,
   Spin,
+  Upload,
+  Form,
+  Select,
+  message,
 } from "antd";
 import {
   RocketOutlined,
@@ -18,6 +22,7 @@ import {
   FileTextOutlined,
   CheckCircleOutlined,
   RobotOutlined,
+  UploadOutlined,
 } from "@ant-design/icons";
 import XStream from "@ant-design/x-markdown";
 import LogsTab from "../components/LogsTab";
@@ -35,6 +40,8 @@ const LLMAdmin: React.FC = () => {
   const [classificationData, setClassificationData] = useState<any[]>([]);
   const [completedVectors, setCompletedVectors] = useState<string[]>([]);
   const [activeStageTab, setActiveStageTab] = useState("0");
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [form] = Form.useForm();
 
   // Sync tab with current step
   React.useEffect(() => {
@@ -386,10 +393,10 @@ const LLMAdmin: React.FC = () => {
                                                   >
                                                     {table}
                                                   </Tag>
-                                                )
+                                                ),
                                               )}
                                             </Card>
-                                          )
+                                          ),
                                         )}
                                       </div>
                                     )}
@@ -421,7 +428,7 @@ const LLMAdmin: React.FC = () => {
                                       {classificationData.map((group: any) => {
                                         const isDone =
                                           completedVectors.includes(
-                                            group.group
+                                            group.group,
                                           );
                                         return (
                                           <Card
@@ -458,10 +465,10 @@ const LLMAdmin: React.FC = () => {
                                       content={
                                         logs
                                           .filter((l) =>
-                                            l.includes("VECTORIZING")
+                                            l.includes("VECTORIZING"),
                                           )
                                           .map((l) =>
-                                            l.replace("[VECTORIZING] ", "")
+                                            l.replace("[VECTORIZING] ", ""),
                                           )
                                           .join("\n\n") ||
                                         "Waiting for vectorization..."
@@ -516,11 +523,146 @@ const LLMAdmin: React.FC = () => {
             },
             {
               key: "3",
+              label: "Knowledge Upload",
+              children: (
+                <Card
+                  title="Upload Knowledge Base"
+                  style={{ borderRadius: 12 }}
+                >
+                  <div style={{ maxWidth: 600, margin: "0 auto", padding: 20 }}>
+                    <Alert
+                      message="Upload PDF Documents"
+                      description="Select a category and upload PDF files to update the RAG knowledge base."
+                      type="info"
+                      showIcon
+                      style={{ marginBottom: 30 }}
+                    />
+
+                    <Form
+                      form={form}
+                      layout="vertical"
+                      onFinish={async (values) => {
+                        const formData = new FormData();
+
+                        // Handle multiple files
+                        if (values.files && values.files.length > 0) {
+                          values.files.forEach((file: any) => {
+                            formData.append("files", file.originFileObj);
+                          });
+                        }
+
+                        formData.append("category", values.category);
+
+                        setUploadLoading(true);
+                        try {
+                          // message.loading({ content: "Uploading...", key: "upload" });
+                          const res = await fetch(
+                            "http://localhost:8080/admin/knowledge/upload",
+                            {
+                              method: "POST",
+                              body: formData,
+                            },
+                          );
+
+                          if (res.ok) {
+                            const data = await res.json();
+                            message.success({
+                              content: data.message || "Upload Successful!",
+                              key: "upload",
+                            });
+                          } else {
+                            const err = await res.json();
+                            message.error({
+                              content: `Upload Failed: ${err.detail}`,
+                              key: "upload",
+                            });
+                          }
+                        } catch (e) {
+                          message.error({
+                            content: "Upload Error",
+                            key: "upload",
+                          });
+                        } finally {
+                          setUploadLoading(false);
+                          form.resetFields(["files"]);
+                        }
+                      }}
+                    >
+                      <Form.Item
+                        label="Category"
+                        name="category"
+                        rules={[
+                          {
+                            required: true,
+                            message: "Please select a category!",
+                          },
+                        ]}
+                        initialValue="Sales"
+                      >
+                        <Select>
+                          <Select.Option value="Sales">Sales</Select.Option>
+                          <Select.Option value="HR">HR</Select.Option>
+                          <Select.Option value="Technology">
+                            Technology
+                          </Select.Option>
+                          <Select.Option value="Finance">Finance</Select.Option>
+                        </Select>
+                      </Form.Item>
+
+                      <Form.Item
+                        label="PDF Documents"
+                        name="files"
+                        valuePropName="fileList"
+                        getValueFromEvent={(e: any) => {
+                          if (Array.isArray(e)) return e;
+                          return e?.fileList;
+                        }}
+                        rules={[
+                          {
+                            required: true,
+                            message: "Please upload at least one file!",
+                          },
+                        ]}
+                      >
+                        <Upload.Dragger
+                          name="files"
+                          multiple={true}
+                          accept=".pdf"
+                          beforeUpload={() => false} // Prevent auto upload
+                        >
+                          <p className="ant-upload-drag-icon">
+                            <UploadOutlined />
+                          </p>
+                          <p className="ant-upload-text">
+                            Click or drag files to this area to upload
+                          </p>
+                        </Upload.Dragger>
+                      </Form.Item>
+
+                      <Form.Item>
+                        <Button
+                          type="primary"
+                          htmlType="submit"
+                          icon={<UploadOutlined />}
+                          block
+                          size="large"
+                          loading={uploadLoading}
+                        >
+                          Upload to Knowledge Base
+                        </Button>
+                      </Form.Item>
+                    </Form>
+                  </div>
+                </Card>
+              ),
+            },
+            {
+              key: "4",
               label: "System Health",
               disabled: true,
             },
             {
-              key: "4",
+              key: "5",
               label: "Settings",
               disabled: true,
             },
