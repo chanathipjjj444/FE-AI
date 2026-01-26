@@ -18,11 +18,8 @@ import {
   ReadOutlined,
   DatabaseOutlined,
   LogoutOutlined,
-  ShopOutlined,
-  TeamOutlined,
-  LaptopOutlined,
-  BankOutlined,
   CommentOutlined,
+  ArrowLeftOutlined,
 } from "@ant-design/icons";
 import { Actions, Bubble, Sender, ThoughtChain } from "@ant-design/x";
 import type { ThoughtChainItemType } from "@ant-design/x";
@@ -58,20 +55,24 @@ interface UserProfile {
   position: string;
 }
 
-const CATEGORIES = [
-  { key: "General", label: "General Chat" },
-  { key: "Sales", label: "Sales" },
-  { key: "HR", label: "HR" },
-  { key: "Technology", label: "Technology" },
-  { key: "Finance", label: "Finance" },
-];
+interface Category {
+  id?: number;
+  name: string;
+  label?: string; // For compatibility if needed, but we'll use name as key/label
+  description?: string;
+}
 
-const SecureChatDemo: React.FC = () => {
+interface ChatProps {
+  forcedCategory?: string;
+  onBack?: () => void;
+}
+
+const SecureChatDemo: React.FC<ChatProps> = ({ forcedCategory, onBack }) => {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
-      content: "สวัสดีครับ! ผมคือ **Corporate AI** มีอะไรให้ผมช่วยวันนี้ครับ?",
+      content: `Hello! I am **Corporate AI**${forcedCategory ? ` specialized in **${forcedCategory}**` : ""}. How can I help you today?`,
       sender: "ai",
     },
   ]);
@@ -80,10 +81,14 @@ const SecureChatDemo: React.FC = () => {
     ThoughtChainItemType[]
   >([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState("General");
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState(
+    forcedCategory || "General",
+  );
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  // const location = useLocation(); // Not using location state for now, relying on props or default
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -91,10 +96,69 @@ const SecureChatDemo: React.FC = () => {
 
   useEffect(scrollToBottom, [messages, thoughtChainItems]);
 
+  // Load Categories
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await fetch("http://localhost:8080/admin/categories");
+        if (res.ok) {
+          const data = await res.json();
+          // Map backend categories to menu format + 'General'
+          const cats = [{ name: "General" }, ...data];
+          setCategories(cats);
+        } else {
+          // Fallback
+          setCategories([
+            { name: "General" },
+            { name: "Sales" },
+            { name: "HR" },
+            { name: "Technology" },
+            { name: "Finance" },
+          ]);
+        }
+      } catch (e) {
+        console.error("Failed to load categories", e);
+        // Fallback
+        setCategories([
+          { name: "General" },
+          { name: "Sales" },
+          { name: "HR" },
+          { name: "Technology" },
+          { name: "Finance" },
+        ]);
+      }
+    };
+
+    // Only fetch if not forced or if we want to validte existing
+    if (!forcedCategory) {
+      fetchCategories();
+    } else {
+      // If forced, we effectively have one category
+      setCategories([{ name: forcedCategory }]);
+      setSelectedCategory(forcedCategory);
+      // Update initial message
+      setMessages([
+        {
+          id: 1,
+          content: `Hello! I am **Corporate AI** specialized in **${forcedCategory}**. How can I help you?`,
+          sender: "ai",
+        },
+      ]);
+    }
+  }, [forcedCategory]);
+
   // Load User Profile
   useEffect(() => {
     const fetchProfile = async () => {
       const token = localStorage.getItem("token");
+      if (!token) {
+        // If we are in admin preview mode (embedded), maybe we don't need auth or use a dummy?
+        // For now, assuming admin is logged in or we have a token.
+        // If onBack is present, it means we are likely in Admin Preview, so maybe skip redirect
+        if (!onBack) navigate("/login");
+        return;
+      }
+
       try {
         const res = await fetch("http://localhost:8080/auth/me", {
           headers: { Authorization: `Bearer ${token}` },
@@ -103,16 +167,17 @@ const SecureChatDemo: React.FC = () => {
           const data = await res.json();
           setUserProfile(data);
         } else {
-          // Token expired or invalid
-          localStorage.removeItem("token");
-          navigate("/login");
+          if (!onBack) {
+            localStorage.removeItem("token");
+            navigate("/login");
+          }
         }
       } catch (e) {
         console.error("Failed to load profile", e);
       }
     };
     fetchProfile();
-  }, [navigate]);
+  }, [navigate, onBack]);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -144,7 +209,7 @@ const SecureChatDemo: React.FC = () => {
     // Step 1: Sending Request
     setThoughtChainItems([
       {
-        title: "โจทย์: ความต้องการและสิทธิ์", // Adapted slightly for UX
+        title: "Requirement Analysis",
         status: "loading",
         icon: <SafetyCertificateOutlined />,
       },
@@ -168,7 +233,7 @@ const SecureChatDemo: React.FC = () => {
 
         setThoughtChainItems(() => [
           {
-            title: "การตรวจสอบสิทธิ์ล้มเหลว",
+            title: "Access Denied",
             status: "error",
             description: errorMsg,
             icon: <LockOutlined />,
@@ -183,7 +248,7 @@ const SecureChatDemo: React.FC = () => {
       if (data.message) {
         setThoughtChainItems([
           {
-            title: "สร้างคำตอบเรียบร้อยแล้ว",
+            title: "Response Generated",
             status: "success",
             icon: <RobotOutlined />,
           },
@@ -194,25 +259,25 @@ const SecureChatDemo: React.FC = () => {
 
       setThoughtChainItems([
         {
-          title: "ผ่านการตรวจสอบความปลอดภัย",
+          title: "Security Check Passed",
           status: "success",
           icon: <SafetyCertificateOutlined />,
         },
         {
-          title: "สร้างคำสั่ง SQL",
+          title: "Generatng SQL",
           status: "success",
           description: `\`\`\`sql\n${data.sql}\n\`\`\``,
           icon: <DatabaseOutlined />,
         },
         {
-          title: "ดึงข้อมูลเรียบร้อย",
+          title: "Data Fetched",
           status: "success",
           icon: <ReadOutlined />,
         },
       ]);
 
       // Format Result as Table or JSON
-      let content = "พบข้อมูลดังนี้:\n\n";
+      let content = "Here is the data I found:\n\n";
       if (data.result && data.result.length > 0) {
         // Simple markdown table generation
         const keys = Object.keys(data.result[0]);
@@ -223,7 +288,7 @@ const SecureChatDemo: React.FC = () => {
           content += `| ${keys.map((k) => row[k]).join(" | ")} |\n`;
         });
       } else {
-        content += "ไม่พบข้อมูลที่ตรงกับคำค้นหา";
+        content += "No matching records found.";
       }
 
       addAIMessage(content, "success");
@@ -231,13 +296,13 @@ const SecureChatDemo: React.FC = () => {
       setThoughtChainItems((prev) => [
         ...prev,
         {
-          title: "ข้อผิดพลาดเครือข่าย",
+          title: "Network Error",
           status: "error",
           icon: <DatabaseOutlined />,
         },
       ]);
       addAIMessage(
-        "ขออภัย เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์ AI",
+        "Sorry, I cannot connect to the AI server right now.",
         "error",
       );
     }
@@ -259,48 +324,53 @@ const SecureChatDemo: React.FC = () => {
   const handleCategoryChange = (e: any) => {
     setSelectedCategory(e.key);
     message.info(`Switched to ${e.key} Knowledge Base`);
-    // Optionally clear messages or add a separator
+    // Optionally clear messages
     setMessages([]);
   };
 
+  // If forced category, we hide the sider menu or simplify it
+  const showSider = !forcedCategory;
+
   return (
     <Layout style={{ height: "100vh" }}>
-      <Sider width={"15%"} theme="dark">
-        <div
-          style={{ padding: "16px 0", textAlign: "center", marginBottom: 16 }}
-        >
-          <CommentOutlined
-            style={{ fontSize: "24px", color: "#fff", marginRight: 10 }}
-          />
-          <Text strong style={{ color: "#fff", fontSize: 16 }}>
-            Forniture's Chat
-          </Text>
-        </div>
-        <Menu
-          theme="dark"
-          mode="inline"
-          selectedKeys={[selectedCategory]}
-          onClick={handleCategoryChange}
-          items={CATEGORIES}
-        />
-        <div
-          style={{
-            position: "absolute",
-            bottom: 20,
-            width: "100%",
-            textAlign: "center",
-          }}
-        >
-          <Button
-            type="text"
-            icon={<LogoutOutlined />}
-            style={{ color: "white" }}
-            onClick={handleLogout}
+      {showSider && (
+        <Sider width={"15%"} theme="dark">
+          <div
+            style={{ padding: "16px 0", textAlign: "center", marginBottom: 16 }}
           >
-            Logout
-          </Button>
-        </div>
-      </Sider>
+            <CommentOutlined
+              style={{ fontSize: "24px", color: "#fff", marginRight: 10 }}
+            />
+            <Text strong style={{ color: "#fff", fontSize: 16 }}>
+              Forniture's Chat
+            </Text>
+          </div>
+          <Menu
+            theme="dark"
+            mode="inline"
+            selectedKeys={[selectedCategory]}
+            onClick={handleCategoryChange}
+            items={categories.map((c) => ({ key: c.name, label: c.name }))}
+          />
+          <div
+            style={{
+              position: "absolute",
+              bottom: 20,
+              width: "100%",
+              textAlign: "center",
+            }}
+          >
+            <Button
+              type="text"
+              icon={<LogoutOutlined />}
+              style={{ color: "white" }}
+              onClick={handleLogout}
+            >
+              Logout
+            </Button>
+          </div>
+        </Sider>
+      )}
 
       <Layout>
         <Header
@@ -313,14 +383,19 @@ const SecureChatDemo: React.FC = () => {
             padding: "0 24px",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            {onBack && (
+              <Button icon={<ArrowLeftOutlined />} onClick={onBack}>
+                Back to Admin
+              </Button>
+            )}
             <Title level={4} style={{ margin: 0 }}>
               {selectedCategory} Assistant
             </Title>
           </div>
         </Header>
         <Layout>
-          {/* Right Profile Sider - kept as original but moved inside */}
+          {/* Main Chat Area */}
           <Content
             style={{
               padding: "20px",
@@ -372,7 +447,7 @@ const SecureChatDemo: React.FC = () => {
                   </div>
                 ))}
 
-                {/* Visual Reasoning Trace (The Ant Design X Magic) */}
+                {/* Visual Reasoning Trace */}
                 {isProcessing && thoughtChainItems.length > 0 && (
                   <div
                     style={{
@@ -387,7 +462,7 @@ const SecureChatDemo: React.FC = () => {
                       type="secondary"
                       style={{ marginBottom: 10, display: "block" }}
                     >
-                      กำลังประมวลผลคำสั่ง...
+                      AI Thinking...
                     </Text>
                     <ThoughtChain items={thoughtChainItems} />
                   </div>
@@ -438,7 +513,7 @@ const SecureChatDemo: React.FC = () => {
                 </Tag>
               </>
             ) : (
-              <Text>Loading...</Text>
+              <Text>Guest / Admin</Text>
             )}
 
             <Divider />

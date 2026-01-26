@@ -23,10 +23,14 @@ import {
   CheckCircleOutlined,
   RobotOutlined,
   UploadOutlined,
+  PlusOutlined,
+  DeleteOutlined,
+  MessageOutlined,
 } from "@ant-design/icons";
 import XStream from "@ant-design/x-markdown";
 import LogsTab from "../components/LogsTab";
 import TrainingTimeline from "../components/TrainingTimeline";
+import SecureChatDemo from "../components/Chat";
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -43,6 +47,12 @@ const LLMAdmin: React.FC = () => {
   const [uploadLoading, setUploadLoading] = useState(false);
   const [form] = Form.useForm();
 
+  // Role Management State
+  const [categories, setCategories] = useState<any[]>([]);
+  const [activeRoleChat, setActiveRoleChat] = useState<string | null>(null);
+  const [newRoleName, setNewRoleName] = useState("");
+  const [roleLoading, setRoleLoading] = useState(false);
+
   // Sync tab with current step
   React.useEffect(() => {
     if (processing && currentStep < 5) {
@@ -53,9 +63,66 @@ const LLMAdmin: React.FC = () => {
   }, [currentStep, processing]);
 
   // Suppress unused logs warning until we map it to the table
+  // Suppress unused logs warning until we map it to the table
   React.useEffect(() => {
     if (logs.length > 0) console.log("Training logs:", logs);
   }, [logs]);
+
+  // Fetch Categories
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch("http://localhost:8080/admin/categories");
+      if (res.ok) {
+        const data = await res.json();
+        setCategories(data);
+      }
+    } catch (e) {
+      console.error("Failed to fetch categories", e);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const handleCreateRole = async () => {
+    if (!newRoleName.trim()) return;
+    setRoleLoading(true);
+    try {
+      const res = await fetch("http://localhost:8080/admin/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newRoleName, description: "Custom Role" }),
+      });
+      if (res.ok) {
+        message.success("Role created");
+        setNewRoleName("");
+        fetchCategories();
+      } else {
+        message.error("Failed to create role");
+      }
+    } catch (e) {
+      message.error("Error creating role");
+    } finally {
+      setRoleLoading(false);
+    }
+  };
+
+  const handleDeleteRole = async (id: number) => {
+    try {
+      const res = await fetch(`http://localhost:8080/admin/categories/${id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        message.success("Role deleted");
+        fetchCategories();
+      } else {
+        message.error("Failed to delete role");
+      }
+    } catch (e) {
+      message.error("Error deleting role");
+    }
+  };
 
   const steps = [
     { title: "Fetch Data", icon: <DatabaseOutlined /> },
@@ -124,6 +191,15 @@ const LLMAdmin: React.FC = () => {
     }
   };
 
+  if (activeRoleChat) {
+    return (
+      <SecureChatDemo
+        forcedCategory={activeRoleChat}
+        onBack={() => setActiveRoleChat(null)}
+      />
+    );
+  }
+
   return (
     <Layout
       style={{ padding: "40px", background: "#f0f2f5", minHeight: "100vh" }}
@@ -137,9 +213,79 @@ const LLMAdmin: React.FC = () => {
         </div>
 
         <Tabs
-          defaultActiveKey="1"
+          defaultActiveKey="roles" // Start at roles for convenience
           tabPosition="left"
           items={[
+            {
+              key: "roles",
+              label: "Manage Roles",
+              children: (
+                <Card
+                  title="Manage Roles & Access"
+                  style={{ borderRadius: 12 }}
+                >
+                  <div style={{ marginBottom: 20, display: "flex", gap: 10 }}>
+                    <Form layout="inline">
+                      <Form.Item>
+                        <input
+                          className="ant-input"
+                          placeholder="New Role Name"
+                          value={newRoleName}
+                          onChange={(e) => setNewRoleName(e.target.value)}
+                        />
+                      </Form.Item>
+                      <Form.Item>
+                        <Button
+                          type="primary"
+                          icon={<PlusOutlined />}
+                          onClick={handleCreateRole}
+                          loading={roleLoading}
+                        >
+                          Add Role
+                        </Button>
+                      </Form.Item>
+                    </Form>
+                  </div>
+                  <Table
+                    dataSource={categories}
+                    rowKey="id"
+                    columns={[
+                      { title: "ID", dataIndex: "id", width: 80 },
+                      {
+                        title: "Role Name",
+                        dataIndex: "name",
+                        render: (name) => <Tag color="blue">{name}</Tag>,
+                      },
+                      { title: "Description", dataIndex: "description" },
+                      {
+                        title: "Actions",
+                        key: "actions",
+                        render: (_, record) => (
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <Button
+                              size="small"
+                              type="default"
+                              icon={<MessageOutlined />}
+                              onClick={() => setActiveRoleChat(record.name)}
+                            >
+                              Chat
+                            </Button>
+                            <Button
+                              size="small"
+                              danger
+                              icon={<DeleteOutlined />}
+                              onClick={() => handleDeleteRole(record.id)}
+                            >
+                              Delete
+                            </Button>
+                          </div>
+                        ),
+                      },
+                    ]}
+                  />
+                </Card>
+              ),
+            },
             {
               key: "1",
               label: "Training Pipeline",
@@ -606,6 +752,11 @@ const LLMAdmin: React.FC = () => {
                             Technology
                           </Select.Option>
                           <Select.Option value="Finance">Finance</Select.Option>
+                          {categories.map((c) => (
+                            <Select.Option key={c.id} value={c.name}>
+                              {c.name}
+                            </Select.Option>
+                          ))}
                         </Select>
                       </Form.Item>
 
