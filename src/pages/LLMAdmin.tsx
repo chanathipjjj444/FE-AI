@@ -13,6 +13,8 @@ import {
   Form,
   Select,
   message,
+  Modal,
+  Input,
 } from "antd";
 import {
   RocketOutlined,
@@ -51,7 +53,15 @@ const LLMAdmin: React.FC = () => {
   const [categories, setCategories] = useState<any[]>([]);
   const [activeRoleChat, setActiveRoleChat] = useState<string | null>(null);
   const [newRoleName, setNewRoleName] = useState("");
+  const [newRoleDescription, setNewRoleDescription] = useState("");
+  const DEFAULT_SYSTEM_PROMPT =
+    "You are a professional corporate AI assistant. Provide accurate, concise, and business-appropriate responses.";
+  const [newRoleSystemPrompt, setNewRoleSystemPrompt] = useState(
+    DEFAULT_SYSTEM_PROMPT,
+  );
   const [roleLoading, setRoleLoading] = useState(false);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [editingRole, setEditingRole] = useState<any>(null);
 
   // Sync tab with current step
   React.useEffect(() => {
@@ -92,17 +102,66 @@ const LLMAdmin: React.FC = () => {
       const res = await fetch("http://localhost:8080/admin/categories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newRoleName, description: "Custom Role" }),
+        body: JSON.stringify({
+          name: newRoleName,
+          description: newRoleDescription,
+          system_prompt: newRoleSystemPrompt,
+        }),
       });
       if (res.ok) {
         message.success("Role created");
+        setIsModalVisible(false);
         setNewRoleName("");
+        setNewRoleDescription("");
+        setNewRoleSystemPrompt(DEFAULT_SYSTEM_PROMPT);
         fetchCategories();
       } else {
         message.error("Failed to create role");
       }
     } catch (e) {
       message.error("Error creating role");
+    } finally {
+      setRoleLoading(false);
+    }
+  };
+
+  const handleEditRole = (role: any) => {
+    setEditingRole(role);
+    setNewRoleName(role.name);
+    setNewRoleDescription(role.description || "");
+    setNewRoleSystemPrompt(role.system_prompt || "");
+    setIsModalVisible(true);
+  };
+
+  const handleUpdateRole = async () => {
+    if (!editingRole) return;
+    setRoleLoading(true);
+    try {
+      const res = await fetch(
+        `http://localhost:8080/admin/categories/${editingRole.id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: newRoleName,
+            description: newRoleDescription,
+            system_prompt: newRoleSystemPrompt,
+          }),
+        },
+      );
+      if (res.ok) {
+        message.success("Role updated");
+        setIsModalVisible(false);
+        setEditingRole(null);
+        setNewRoleName("");
+        setNewRoleDescription("");
+        setNewRoleSystemPrompt("");
+        fetchCategories();
+      } else {
+        message.error("Failed to update role");
+      }
+    } catch (error) {
+      message.error("Error updating role");
     } finally {
       setRoleLoading(false);
     }
@@ -224,28 +283,54 @@ const LLMAdmin: React.FC = () => {
                   title="Manage Roles & Access"
                   style={{ borderRadius: 12 }}
                 >
-                  <div style={{ marginBottom: 20, display: "flex", gap: 10 }}>
-                    <Form layout="inline">
-                      <Form.Item>
-                        <input
-                          className="ant-input"
-                          placeholder="New Role Name"
-                          value={newRoleName}
-                          onChange={(e) => setNewRoleName(e.target.value)}
-                        />
-                      </Form.Item>
-                      <Form.Item>
-                        <Button
-                          type="primary"
-                          icon={<PlusOutlined />}
-                          onClick={handleCreateRole}
-                          loading={roleLoading}
-                        >
-                          Add Role
-                        </Button>
-                      </Form.Item>
-                    </Form>
-                  </div>
+                  <Button
+                    type="primary"
+                    icon={<PlusOutlined />}
+                    onClick={() => setIsModalVisible(true)}
+                    style={{ marginBottom: 16 }}
+                  >
+                    Add New Role
+                  </Button>
+
+                  <Modal
+                    title={editingRole ? "Edit Role" : "Create New Role"}
+                    open={isModalVisible}
+                    onOk={editingRole ? handleUpdateRole : handleCreateRole}
+                    onCancel={() => {
+                      setIsModalVisible(false);
+                      setEditingRole(null);
+                      setNewRoleName("");
+                      setNewRoleDescription("");
+                      setNewRoleSystemPrompt(DEFAULT_SYSTEM_PROMPT);
+                    }}
+                    confirmLoading={roleLoading}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 10,
+                      }}
+                    >
+                      <Input
+                        placeholder="Role Name (e.g. HR, Engineer)"
+                        value={newRoleName}
+                        onChange={(e) => setNewRoleName(e.target.value)}
+                      />
+                      <Input
+                        placeholder="Description"
+                        value={newRoleDescription}
+                        onChange={(e) => setNewRoleDescription(e.target.value)}
+                      />
+                      <Input.TextArea
+                        placeholder="Custom System Prompt (Optional)"
+                        value={newRoleSystemPrompt}
+                        onChange={(e) => setNewRoleSystemPrompt(e.target.value)}
+                        rows={4}
+                      />
+                    </div>
+                  </Modal>
+
                   <Table
                     dataSource={categories}
                     rowKey="id"
@@ -269,6 +354,12 @@ const LLMAdmin: React.FC = () => {
                               onClick={() => setActiveRoleChat(record.name)}
                             >
                               Chat
+                            </Button>
+                            <Button
+                              size="small"
+                              onClick={() => handleEditRole(record)}
+                            >
+                              Edit
                             </Button>
                             <Button
                               size="small"
